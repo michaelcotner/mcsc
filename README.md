@@ -4,7 +4,17 @@ A collection of functions that I've made over time for single cell analysis. Mos
 
 ## use
 
-a
+Navigate to any directory accessible by your python analysis file and run:
+
+```
+wget https://raw.githubusercontent.com/name/etc/main/etc.py
+```
+
+In your analysis python script, import the file with:
+
+```py
+from import
+```
 
 ## documentation
 
