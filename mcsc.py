@@ -1,3 +1,5 @@
+VERSION = '0.1'
+
 def test1():
     return 'test1'
 
