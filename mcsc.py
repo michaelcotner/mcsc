@@ -235,9 +235,9 @@ def volcano_plot(df:'pandas.DataFrame', *,
         ann_upreg_idx = np.where(np.logical_and(df[lfc_key] > gene_annotation_lfc_cutoff, df[p_key] < gene_annotation_p_cutoff))[0]
         ann_downreg_idx = np.where(np.logical_and(df[lfc_key] < -1*gene_annotation_lfc_cutoff, df[p_key] < gene_annotation_p_cutoff))[0]
         for i in ann_upreg_idx:
-            print(df.iloc[i, :][genes_key], (df.iloc[i, :][lfc_key],-1*np.log10(df.iloc[i, :][p_key])), fontsize=annotate_fontsize)
+            ax.annotate(df.iloc[i, :][genes_key], (df.iloc[i, :][lfc_key],-1*np.log10(df.iloc[i, :][p_key])), fontsize=annotate_fontsize)
         for i in ann_downreg_idx:
-            print(df.iloc[i, :][genes_key], (df.iloc[i, :][lfc_key],-1*np.log10(df.iloc[i, :][p_key])), fontsize=annotate_fontsize)
+            ax.annotate(df.iloc[i, :][genes_key], (df.iloc[i, :][lfc_key],-1*np.log10(df.iloc[i, :][p_key])), fontsize=annotate_fontsize)
 
     # symmetrical x axis
     xlim = np.max(np.abs(df['logfoldchanges']))
