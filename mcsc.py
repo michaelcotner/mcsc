@@ -1,10 +1,22 @@
-VERSION = '0.1'
+VERSION = '0.2'
 
-import urllib.request
-import anndata
-import numpy as np
 
-def _get_version():
+
+
+
+######################
+### Internal stuff ###
+######################
+
+def _check_version():
+    # check if there is a new version of the file
+
+    # imports
+    try:
+        import urllib.request
+    except ImportError as e:
+        return
+
     # hosted file to compare to
     url = 'https://raw.githubusercontent.com/michaelcotner/mcsc/main/mcsc.py'
 
@@ -13,22 +25,27 @@ def _get_version():
             # get version from the first line
             file_head = response.readline().decode('utf-8')
             if file_head.startswith('VERSION = '):
-                version = file_head[len('VERSION = '):].strip('\'\n')
-                return version
+                ref_version = file_head[len('VERSION = '):].strip('\'\n')
+                print('Your mcsc version is', VERSION, 'but version', ref_version, 'exists on github.')
+                print('You can update your mcsc by running:')
+                print('\t', 'wget -N -O mcsc.py https://raw.githubusercontent.com/michaelcotner/mcsc/main/mcsc.py')
+                return
     except Exception as e:
-        print('Failed to get version:', e)
-        return None
+        return
     
-    print('Failed to get version')
-    return None
+    return
 
-ref_version = _get_version()
-if ref_version != VERSION and ref_version is not None:
-    print('Your mcsc version is', VERSION, 'but version', ref_version, 'exists on github.')
-    print('You can update your mcsc by running:')
-    print('\t', 'wget -N -O mcsc.py https://raw.githubusercontent.com/michaelcotner/mcsc/main/mcsc.py')
+_check_version()
 
-def rgg_logfoldchange(adata:anndata.AnnData, *, counts_layer='counts', uns_key_added='logfoldchanges', key='rank_genes_groups'):
+
+
+
+
+#################
+### Functions ###
+#################
+
+def rgg_logfoldchange(adata:'anndata.AnnData', *, counts_layer='counts', uns_key_added='logfoldchanges', key='rank_genes_groups', copy=False):
     """
     Updates a specified `scanpy.tl.rank_genes_groups` `uns` layer, calculated from a counts layer.
 
@@ -47,7 +64,7 @@ def rgg_logfoldchange(adata:anndata.AnnData, *, counts_layer='counts', uns_key_a
     
     Returns
     -------
-    `None`. Updates 
+    `None` if `copy` = `False`. Updates the anndata object passed. If `copy` = `True`, returns an updated copy of the anndata object passed.
 
     Examples
     --------
@@ -58,6 +75,15 @@ def rgg_logfoldchange(adata:anndata.AnnData, *, counts_layer='counts', uns_key_a
     >>> rgg_logfoldchange(adata)  # this dataset doesn't actually have a counts layer so this won't run. pretend it does.
     >>> sc.get.rank_genes_groups_dotplot(adata, groups='Dendritic') # logfoldchange contains meaningful values based on raw counts
     """
+
+    # imports
+    try:
+        import anndata
+        import numpy as np
+        import pandas as pd
+    except ImportError as e:
+        print('One or more packages required for rgg_logfoldchange are not installed.\n', e)
+        return None
 
     # check parameter values
     if key not in adata.uns_keys():
@@ -72,9 +98,44 @@ def rgg_logfoldchange(adata:anndata.AnnData, *, counts_layer='counts', uns_key_a
     if uns_key_added != 'logfoldchanges':
         adata.uns[key][uns_key_added] = adata.uns['rank_genes_groups']['logfoldchanges'].copy()
 
+    if copy:
+        adata = adata.copy()
 
     groups = adata.uns['rank_genes_groups']['scores'].dtype.names  # list of groups in obs
     obs_name = adata.uns['rank_genes_groups']['params']['groupby']  # obs name that the groups come from
+
+
+    # build a dataframe for log fold changes for each group
+    lfcs = pd.DataFrame(index=adata.var_names, columns=groups)
+
+    if adata.uns[key]['params']['reference'] == 'rest':
+        for group in groups:
+            lfcs[group] = np.log2(
+                np.average(adata.layers[counts_layer][adata.obs[obs_name] == group].toarray(), axis=0)/
+                np.average(adata.layers[counts_layer][adata.obs[obs_name] != group].toarray(), axis=0)
+            )
+    else:
+        for group in groups:
+            lfcs[group] = np.log2(
+                np.average(adata.layers[counts_layer][adata.obs[obs_name] == group].toarray(), axis=0)/
+                np.average(adata.layers[counts_layer][adata.obs[obs_name] == adata.uns[key]['params']['reference']].toarray(), axis=0)
+            )
+
+    # change the logfoldchange values in the uns
+    for i in range(adata.uns[key][uns_key_added].shape[0]):
+        for j, group in enumerate(groups):
+            adata.uns[key][uns_key_added][i][j] = lfcs.loc[adata.uns[key]['names'][i][j], group]
+
+    if copy:
+        return adata
+    else:
+        return None
+
+    '''
+    
+    this old looping method had a very long runtime
+    the uns that scanpy adds makes this difficult - the genes are in their ranked order, which means a different order for each group
+    we'll have to do the log fold change for each gene first, and then re-order them.
 
     # loop through ranked genes
     for i in range(adata.uns[key][uns_key_added].shape[0]):
@@ -89,9 +150,17 @@ def rgg_logfoldchange(adata:anndata.AnnData, *, counts_layer='counts', uns_key_a
             else:
                 ref_idx = np.where(adata.obs['sample'] == adata.uns[key]['params']['reference'])[0] # indices where a cell is in the reference group
 
-            exp_avg = np.mean(adata.X[group_idx, gene_idx])  # average expression in group
-            ref_exp_avg = np.mean(adata.X[ref_idx, gene_idx])  # average expression in reference
+            exp_avg = np.mean(adata.layers[counts_layer][group_idx, gene_idx])  # average expression in group
+            ref_exp_avg = np.mean(adata.layers[counts_layer][ref_idx, gene_idx])  # average expression in reference
+            # print(exp_avg, ref_exp_avg)
             adata.uns[key][uns_key_added][i][j] = np.log2(exp_avg/ref_exp_avg)
+
+    return adata
+    '''
         
 def volcano_plot():
     pass
+
+
+
+
