@@ -169,7 +169,7 @@ def rgg_logfoldchange(adata:'anndata.AnnData', *, counts_layer='counts', uns_key
         
 def volcano_plot(df:'pandas.DataFrame', *, 
                  lfc_key='logfoldchanges', p_key='pvals_adj', genes_key='names', lfc_cutoff=0.5, p_cutoff=0.05, 
-                 title=None, dot_size=1, upreg_color='#aa0000', downreg_color='#00aa00', grid=False, 
+                 title=None, dot_size=1, upreg_color='#aa0000', downreg_color='#0000aa', grid=False, 
                  annotate_genes=False, gene_annotation_lfc_cutoff=1.0, gene_annotation_p_cutoff=0.001, annotate_fontsize='small',
                  plot=True, return_genes=False
                  ):
