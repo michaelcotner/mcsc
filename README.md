@@ -26,14 +26,14 @@ wget -N -O mcsc.py https://raw.githubusercontent.com/michaelcotner/mcsc/main/mcs
 
 `mcsc` will warn you if there is a new version available.
 
-## documentation
+# documentation
 
-#### rgg_logfoldchange
+## rgg_logfoldchange
 Updates a specified `scanpy.tl.rank_genes_groups` `uns` layer, calculated from a counts layer.
 
 Since scanpy.get.rank_genes_groups expects logarithmized data, the log fold change calculation they give is meaningless. This function calculates the log fold change based on a counts layer and updates the `rank_genes_groups` `uns`.
 
-##### Parameters
+### Parameters
  - adata
      - The annotated data matrix, on which scanpy.tl.rank_genes_groups has already been run with a uns key specified in the `key` parameter
  - counts_layer
@@ -49,10 +49,10 @@ Since scanpy.get.rank_genes_groups expects logarithmized data, the log fold chan
      - default value: `False`
     Returns an updated copy of the matrix if `True`. Otherwise the passed anndata object is updated and `None` is returned.
         
-##### Returns
+### Returns
  - `None` if `copy` = `False`. Updates the anndata object passed. If `copy` = `True`, returns an updated copy of the anndata object passed.
 
-##### Examples
+### Examples
 ```py
 >>> import mcsc
 >>> import scanpy as sc
@@ -66,12 +66,12 @@ AnnData object with n_obs × n_vars = 12050 × 13818
 >>> sc.get.rank_genes_groups_dotplot(adata, groups='pretreat') # logfoldchange contains meaningful values based on raw counts
 ```
 
-#### volcano_plot
+## volcano_plot
 Updates a specified `scanpy.tl.rank_genes_groups` `uns` layer, calculated from a counts layer.
 
 Since scanpy.get.rank_genes_groups expects logarithmized data, the log fold change calculation they give is meaningless. This function calculates the log fold change based on a counts layer and updates the `rank_genes_groups` `uns`.
 
-##### Parameters
+### Parameters
 
  - df
      - The output of `sc.get.rank_genes_groups_df()`, after running `mcsc.rgg_logfoldchange()` to fix log fold change values.
@@ -136,13 +136,13 @@ Since scanpy.get.rank_genes_groups expects logarithmized data, the log fold chan
      - default value `False`
      - Returns the dataframe passed to `df=` with only the genes that met the log2 fold change and p-value cutoffs.
 
-##### Returns
+### Returns
  - df
      - If `return_genes` is `True`, returns an updated dataframe including only the genes that meet the passed log2 fold change and p-value cutoffs.
  - ax
      - If `plot` is `False`, returns a matplotlib.pyplot axis object containing the volcano plot.
 
-##### Examples
+### Examples
 ```py
 >>> import mcsc
 >>> import scanpy as sc
@@ -155,4 +155,15 @@ AnnData object with n_obs × n_vars = 12050 × 13818
 >>> mcsc.volcano_plot(
 >>>     sc.get.rank_genes_groups_dotplot(adata, groups='pretreat')
 >>> ) # displays the volcano plot
+>>> mcsc.volcano_plot(
+>>>     sc.get.rank_genes_groups_df(adata, group='PT'),
+>>>     lfc_cutoff=1, 
+>>>     p_cutoff=1e-10,
+>>>     annotate_genes=True,
+>>>     annotate_fontsize='x-small',
+>>>     gene_annotation_cutoff_style='radius',
+>>>     gene_annotation_lfc_cutoff=4,
+>>>     gene_annotation_p_cutoff=1e-200,
+>>>     plot=False
+>>> )   # example with more options - returns an axis with annotated genes
 ```
