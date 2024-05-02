@@ -1,4 +1,4 @@
-VERSION = '0.3'
+VERSION = '0.5'
 
 
 
@@ -57,12 +57,16 @@ def rgg_logfoldchange(adata:'anndata.AnnData', *, counts_layer='counts', uns_key
     adata
         The annotated data matrix, on which scanpy.tl.rank_genes_groups has already been run with a uns key specified in the `key` parameter
     counts_layer
-        The layer (in `adata.layers`) containing raw counts or normalized counts which are *not* logarithmized, on which to do the log fold change calculation. `counts` by default.
+        default value: `'counts'`
+        The layer (in `adata.layers`) containing raw counts or normalized counts which are *not* logarithmized, on which to do the log fold change calculation.
     key
+        default value: `'rank_genes_groups'`
         The uns key that contains `rank_genes_group` data; specified as the `key_added` parameter in `scanpy.tl.rank_genes_groups`. The default value is `rank_genes_groups`, which is the default value in `sc.tl.rank_genes_groups` and is what you should use if you didn't specify a key.
     uns_key_added
+        default value: `'logfoldchanges'`
         The name of the key within the `rank_genes_group` uns. If kept as its default value, `logfoldchanges`, this data will overwrite the default log fold change values from `scanpy.tl.rank_genes_groups`. If you do not want the old log fold change values to be overwritten, you should change this key.
     copy
+        default value: `False`
         Returns an updated copy of the matrix if `True`. Otherwise the passed anndata object is updated and `None` is returned.
         
     Returns
@@ -168,9 +172,9 @@ def rgg_logfoldchange(adata:'anndata.AnnData', *, counts_layer='counts', uns_key
     '''
         
 def volcano_plot(df:'pandas.DataFrame', *, 
-                 lfc_key='logfoldchanges', p_key='pvals_adj', genes_key='names', lfc_cutoff=0.5, p_cutoff=0.05, 
+                 lfc_key='logfoldchanges', p_key='pvals_adj', genes_key='names', lfc_cutoff=0.5, p_cutoff=0.05, cutoff_style='and', 
                  title=None, dot_size=1, upreg_color='#aa0000', downreg_color='#0000aa', grid=False, 
-                 annotate_genes=False, gene_annotation_lfc_cutoff=1.0, gene_annotation_p_cutoff=0.001, annotate_fontsize='small',
+                 annotate_genes=False, gene_annotation_lfc_cutoff=1.0, gene_annotation_p_cutoff=0.001, gene_annotation_cutoff_style='and', annotate_fontsize='small',
                  plot=True, return_genes=False
                  ):
     """
@@ -183,11 +187,69 @@ def volcano_plot(df:'pandas.DataFrame', *,
     df
         The output of `sc.get.rank_genes_groups_df()`, after running `mcsc.rgg_logfoldchange()` to fix log fold change values.
         Realistically, this can be any dataframe with columns containing gene names, log fold change values and p-values, whose names are passed to `genes_key`, `lfc_key` and `p_key`, respectively.
-    
+    lfc_key
+        default value `'logfoldchanges'`
+        The name of the column in `df` that contains the log2 fold change values for each gene. The default value is the column name from `sc.tl.rank_genes_groups()`
+    p_key
+        default value `'pvals_adj'`
+        The name of the column in `df` that contains the p-values for each gene. The default value is the column name from `sc.tl.rank_genes_groups()`
+    genes_key
+        default value `'names'`
+        The name of the column in `df` that contains the names of each gene. The default value is the column name from `sc.tl.rank_genes_groups()`
+    lfc_cutoff
+        default value `0.5`
+        The minimum log2 fold change in gene expression to highlight as upregulated or downregulated genes. Downregulated genes must be lower than the negative of this value.
+    p_cutoff
+        default value `'0.05'`
+        The maximum p-value to highlight as statistically significant upregulated or downregulated genes. 
+    cutoff_style
+        default value `'and'`
+        The style to color upregulated and downregulated genes. The styles are:
+        `'and'`: Genes must have a log2 fold change greater than the cutoff *and* a p-value smaller than the cutoff.
+        `'or'`: Genes must have a log2 fold change greater than the cutoff *or* a p-value smaller than the cutoff.
+        `'radius'`: Genes must meet ((log2foldchange-mean(log2foldchange))/`lfc_cutoff`)^2 + ((pvalue-mean(pvalue))/`p_cutoff`)^2 > 1
+    title
+        default value `None`
+        Adds this title to the axis if not `None`.
+    dot_size
+        default value `1`
+        The dot size passed as `matplotlib.pyplot.scatter(s=dot_size)`
+    upreg_color
+        default value `'#aa0000'`
+        The color to highlight upregulated genes as. Follows `matplotlib`'s [color specification](https://matplotlib.org/stable/users/explain/colors/colors.html).
+    downreg_color
+        default value `'#0000aa'`
+        The color to highlight upregulated genes as. Follows `matplotlib`'s [color specification](https://matplotlib.org/stable/users/explain/colors/colors.html).
+    grid
+        default value `False`
+        Draws a grid on the axis when `True`.
+    annotate_genes
+        default value `False`
+        When `True`, uses the `gene_annotation_cutoff_style` to annotate gene names that meet the cutoff.
+        When a list of genes, annotates those genes on the volcano plot.
+    gene_annotation_lfc_cutoff
+        default value `1.0`
+        The minimum log2 fold change in gene expression a gene must have to be annotated.
+    gene_annotation_p_cutoff
+        default value `0.001`
+        The minimum p-value a gene must have to be annotated.
+    gene_annotation_cutoff_style
+        default value `and`
+        The style to annotate genes with. See `cutoff_style` for a list of styles and their descriptions.
+    annotate_fontsize
+        default value `small`.
+        The font size passed as `matplotlib.pyplot.annotate(fontsize=annotate_fontsize)`.
+        Can be `xx-small`, `x-small`, `small`, `medium`, `large`, `x-large`, or `xx-large`.
+    plot
+        default value `True`
+        Shows the plot if `True`. Returns the `matplotlib.pyplot.ax` object if `False`.
+    return_genes
+        default value `False`
+        Returns the dataframe passed to `df=` with only the genes that met the log2 fold change and p-value cutoffs.
     Returns
     -------
     df
-        If `return_genes` is `True`, returns an updated dataframe including only the genes that meet the passed cutoff.
+        If `return_genes` is `True`, returns an updated dataframe including only the genes that meet the passed log2 fold change and p-value cutoffs.
     ax
         If `plot` is `False`, returns a matplotlib.pyplot axis object containing the volcano plot.
 
@@ -219,9 +281,24 @@ def volcano_plot(df:'pandas.DataFrame', *,
 
     fig, ax = plt.subplots()
 
-    upregulated = np.logical_and(df[lfc_key] > lfc_cutoff, df[p_key] < p_cutoff)
-    downregulated = np.logical_and(df[lfc_key] < -1*lfc_cutoff, df[p_key] < p_cutoff)
+    if cutoff_style.lower() == 'or':
+        upregulated = np.logical_or(df[lfc_key] > lfc_cutoff, df[p_key] < p_cutoff)
+        downregulated = np.logical_or(df[lfc_key] < -1*lfc_cutoff, df[p_key] < p_cutoff)
+    elif cutoff_style.lower() == 'radius':
+        mean_lfc = np.mean(df[lfc_key])
+        mean_p = np.mean(df[p_key])
+        radius = np.power((df[lfc_key]-mean_lfc)/lfc_cutoff,2)+np.power((np.log10(df[p_key])-np.log10(mean_p))/np.log10(p_cutoff),2) > 1
+        # print(np.power((np.log2(df[lfc_key])-np.log2(mean_lfc))/np.log2(mean_lfc),2), np.power((np.log10(df[p_key])-np.log10(mean_p))/np.log10(mean_p),2), np.power((np.log2(lfc_cutoff)-np.log2(mean_lfc))/np.log2(mean_lfc),2), np.power((np.log10(p_cutoff)-np.log10(mean_p))/np.log10(mean_p),2))
+        upregulated = np.logical_and(radius, df[lfc_key] > 0)
+        downregulated = np.logical_and(radius, df[lfc_key] < 0)
+    else:
+        if cutoff_style.lower() != 'and':
+            print('Cutoff style specifed \''+cutoff_style+'\' not recognized. Using default \'and\'')
+        upregulated = np.logical_and(df[lfc_key] > lfc_cutoff, df[p_key] < p_cutoff)
+        downregulated = np.logical_and(df[lfc_key] < -1*lfc_cutoff, df[p_key] < p_cutoff)
+
     neither = np.logical_and(~upregulated, ~downregulated)
+
 
     if grid:
         ax.grid()
@@ -231,16 +308,42 @@ def volcano_plot(df:'pandas.DataFrame', *,
     ax.scatter(df[lfc_key][downregulated], (-1*np.log10(df[p_key]))[downregulated], s=dot_size, c=downreg_color)
     
     # annotation
-    if annotate_genes:
-        ann_upreg_idx = np.where(np.logical_and(df[lfc_key] > gene_annotation_lfc_cutoff, df[p_key] < gene_annotation_p_cutoff))[0]
-        ann_downreg_idx = np.where(np.logical_and(df[lfc_key] < -1*gene_annotation_lfc_cutoff, df[p_key] < gene_annotation_p_cutoff))[0]
+    if type(annotate_genes) is list or type(annotate_genes) is np.ndarray: # got list of genes
+        genes_not_in_list = []
+        for gene in annotate_genes:
+            if gene not in df[genes_key].values:
+                genes_not_in_list.append(gene)
+            else:
+                df_at_gene = df.iloc[np.where(df[genes_key] == gene)]
+                ax.annotate(df_at_gene[genes_key].values[0], (df_at_gene[lfc_key],-1*np.log10(df_at_gene[p_key])), fontsize=annotate_fontsize)
+        if len(genes_not_in_list) > 0:
+            print('The following genes were passed to \'annotate_genes=\', but do not exist in the dataframe in the \''+genes_key+'\' column:')
+            print('\t'+str(genes_not_in_list))
+    elif type(annotate_genes) is bool and annotate_genes is True: # use cutoff method
+        if gene_annotation_cutoff_style.lower() == 'or':
+            ann_upreg_idx = np.where(np.logical_or(df[lfc_key] > gene_annotation_lfc_cutoff, df[p_key] < gene_annotation_p_cutoff))[0]
+            ann_downreg_idx = np.where(np.logical_or(df[lfc_key] < -1*gene_annotation_lfc_cutoff, df[p_key] < gene_annotation_p_cutoff))[0]
+        elif gene_annotation_cutoff_style.lower() == 'radius':
+            mean_lfc = np.mean(df[lfc_key])
+            mean_p = np.mean(df[p_key])
+            ann_radius = np.power((df[lfc_key]-mean_lfc)/gene_annotation_lfc_cutoff,2)+np.power((np.log10(df[p_key])-np.log10(mean_p))/np.log10(gene_annotation_p_cutoff),2) > 1
+            ann_upreg_idx = np.where(np.logical_and(ann_radius, df[lfc_key] > 0))[0]
+            ann_downreg_idx = np.where(np.logical_and(ann_radius, df[lfc_key] < 0))[0]
+        else:
+            if gene_annotation_cutoff_style.lower() != 'and':
+                print('Gene annotation cutoff style specifed \''+cutoff_style+'\' not recognized. Using default \'and\'')
+            ann_upreg_idx = np.where(np.logical_and(df[lfc_key] > gene_annotation_lfc_cutoff, df[p_key] < gene_annotation_p_cutoff))[0]
+            ann_downreg_idx = np.where(np.logical_and(df[lfc_key] < -1*gene_annotation_lfc_cutoff, df[p_key] < gene_annotation_p_cutoff))[0]
+
         for i in ann_upreg_idx:
             ax.annotate(df.iloc[i, :][genes_key], (df.iloc[i, :][lfc_key],-1*np.log10(df.iloc[i, :][p_key])), fontsize=annotate_fontsize)
         for i in ann_downreg_idx:
             ax.annotate(df.iloc[i, :][genes_key], (df.iloc[i, :][lfc_key],-1*np.log10(df.iloc[i, :][p_key])), fontsize=annotate_fontsize)
+    else:
+        print('Unrecognized value passed to \'annotate_genes=\'. Pass either a list of genes or \'True\' to use a cutoff.')
 
     # symmetrical x axis
-    xlim = np.max(np.abs(df['logfoldchanges']))
+    xlim = np.max(np.abs(df['logfoldchanges']))*1.1
     ax.set_xlim(-1*xlim, xlim)
 
     # text
