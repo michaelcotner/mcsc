@@ -13,7 +13,7 @@ wget https://raw.githubusercontent.com/michaelcotner/mcsc/main/mcsc.py
 In your python script, import the file with:
 
 ```py
-from path_to_file import mcsc
+from relative_path_to_file import mcsc
 ```
 
 ### updating
