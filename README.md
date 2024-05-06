@@ -129,6 +129,9 @@ Since scanpy.get.rank_genes_groups expects logarithmized data, the log fold chan
      - default value `small`.
      - The font size passed as `matplotlib.pyplot.annotate(fontsize=annotate_fontsize)`.
      - Can be `xx-small`, `x-small`, `small`, `medium`, `large`, `x-large`, or `xx-large`.
+ - annotation_adjust_text
+     - default value `False`
+     - Uses the [adjustText](github.com/Phlya/adjustText) package to move the annotations until they do not overlap each other or the data. 
  - plot
      - default value `True`
      - Shows the plot if `True`. Returns the `matplotlib.pyplot.ax` object if `False`.

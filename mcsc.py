@@ -174,7 +174,7 @@ def rgg_logfoldchange(adata:'anndata.AnnData', *, counts_layer='counts', uns_key
 def volcano_plot(df:'pandas.DataFrame', *, 
                  lfc_key='logfoldchanges', p_key='pvals_adj', genes_key='names', lfc_cutoff=0.5, p_cutoff=0.05, cutoff_style='and', 
                  title=None, dot_size=1, upreg_color='#aa0000', downreg_color='#0000aa', grid=False, 
-                 annotate_genes=False, gene_annotation_lfc_cutoff=1.0, gene_annotation_p_cutoff=0.001, gene_annotation_cutoff_style='and', annotate_fontsize='small',
+                 annotate_genes=False, gene_annotation_lfc_cutoff=1.0, gene_annotation_p_cutoff=0.001, gene_annotation_cutoff_style='and', annotate_fontsize='small', annotation_adjust_text=False, bold_genes=[],
                  plot=True, return_genes=False
                  ):
     """
@@ -240,6 +240,9 @@ def volcano_plot(df:'pandas.DataFrame', *,
         default value `small`.
         The font size passed as `matplotlib.pyplot.annotate(fontsize=annotate_fontsize)`.
         Can be `xx-small`, `x-small`, `small`, `medium`, `large`, `x-large`, or `xx-large`.
+    annotation_adjust_text
+        default value `False`
+        Uses the [adjustText](github.com/Phlya/adjustText) package to move the annotations until they do not overlap each other or the data. 
     plot
         default value `True`
         Shows the plot if `True`. Returns the `matplotlib.pyplot.ax` object if `False`.
@@ -273,11 +276,20 @@ def volcano_plot(df:'pandas.DataFrame', *,
     # imports
     try:
         import matplotlib.pyplot as plt
+        import matplotlib
         import numpy as np
         import pandas
+        from IPython import display
     except ImportError as e:
         print('One or more packages required for volcano_plot are not installed.\n', e)
         return None
+    
+    if annotation_adjust_text:
+        try:
+            from adjustText import adjust_text
+        except ImportError as e:
+            print('Passing \'annotation_adjust_text\' as \'True\' requires the adjustText package to be installed.\n', e)
+            return None
 
     fig, ax = plt.subplots()
 
@@ -308,6 +320,8 @@ def volcano_plot(df:'pandas.DataFrame', *,
     ax.scatter(df[lfc_key][downregulated], (-1*np.log10(df[p_key]))[downregulated], s=dot_size, c=downreg_color)
     
     # annotation
+    anns = []
+
     if type(annotate_genes) is list or type(annotate_genes) is np.ndarray: # got list of genes
         genes_not_in_list = []
         for gene in annotate_genes:
@@ -315,7 +329,10 @@ def volcano_plot(df:'pandas.DataFrame', *,
                 genes_not_in_list.append(gene)
             else:
                 df_at_gene = df.iloc[np.where(df[genes_key] == gene)]
-                ax.annotate(df_at_gene[genes_key].values[0], (df_at_gene[lfc_key],-1*np.log10(df_at_gene[p_key])), fontsize=annotate_fontsize)
+                if df_at_gene[genes_key].values[0] in bold_genes:
+                    anns.append(ax.annotate(df_at_gene[genes_key].values[0], (df_at_gene[lfc_key],-1*np.log10(df_at_gene[p_key])), fontsize=annotate_fontsize, weight='bold'))
+                else:
+                    anns.append(ax.annotate(df_at_gene[genes_key].values[0], (df_at_gene[lfc_key],-1*np.log10(df_at_gene[p_key])), fontsize=annotate_fontsize))
         if len(genes_not_in_list) > 0:
             print('The following genes were passed to \'annotate_genes=\', but do not exist in the dataframe in the \''+genes_key+'\' column:')
             print('\t'+str(genes_not_in_list))
@@ -336,11 +353,20 @@ def volcano_plot(df:'pandas.DataFrame', *,
             ann_downreg_idx = np.where(np.logical_and(df[lfc_key] < -1*gene_annotation_lfc_cutoff, df[p_key] < gene_annotation_p_cutoff))[0]
 
         for i in ann_upreg_idx:
-            ax.annotate(df.iloc[i, :][genes_key], (df.iloc[i, :][lfc_key],-1*np.log10(df.iloc[i, :][p_key])), fontsize=annotate_fontsize)
+            if df.iloc[i, :][genes_key] in bold_genes:
+                anns.append(ax.annotate(df.iloc[i, :][genes_key], (df.iloc[i, :][lfc_key],-1*np.log10(df.iloc[i, :][p_key])), fontsize=annotate_fontsize, weight='bold'))
+            else:
+                anns.append(ax.annotate(df.iloc[i, :][genes_key], (df.iloc[i, :][lfc_key],-1*np.log10(df.iloc[i, :][p_key])), fontsize=annotate_fontsize))
         for i in ann_downreg_idx:
-            ax.annotate(df.iloc[i, :][genes_key], (df.iloc[i, :][lfc_key],-1*np.log10(df.iloc[i, :][p_key])), fontsize=annotate_fontsize)
-    else:
+            if df.iloc[i, :][genes_key] in bold_genes:
+                anns.append(ax.annotate(df.iloc[i, :][genes_key], (df.iloc[i, :][lfc_key],-1*np.log10(df.iloc[i, :][p_key])), fontsize=annotate_fontsize, weight='bold'))
+            else:
+                anns.append(ax.annotate(df.iloc[i, :][genes_key], (df.iloc[i, :][lfc_key],-1*np.log10(df.iloc[i, :][p_key])), fontsize=annotate_fontsize))
+    elif annotate_genes is not False:
         print('Unrecognized value passed to \'annotate_genes=\'. Pass either a list of genes or \'True\' to use a cutoff.')
+
+    if annotation_adjust_text:
+        adjust_text(anns, arrowprops=dict(arrowstyle='-', color='black'))
 
     # symmetrical x axis
     xlim = np.max(np.abs(df['logfoldchanges']))*1.1
