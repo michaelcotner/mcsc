@@ -1,4 +1,4 @@
-VERSION = '0.5'
+VERSION = '0.6'
 
 
 
@@ -121,18 +121,19 @@ def rgg_logfoldchange(adata:'anndata.AnnData', *, counts_layer='counts', uns_key
     # build a dataframe for log fold changes for each group
     lfcs = pd.DataFrame(index=adata.var_names, columns=groups)
 
-    if adata.uns[key]['params']['reference'] == 'rest':
-        for group in groups:
-            lfcs[group] = np.log2(
-                np.average(adata.layers[counts_layer][adata.obs[obs_name] == group].toarray(), axis=0)/
-                np.average(adata.layers[counts_layer][adata.obs[obs_name] != group].toarray(), axis=0)
-            )
-    else:
-        for group in groups:
-            lfcs[group] = np.log2(
-                np.average(adata.layers[counts_layer][adata.obs[obs_name] == group].toarray(), axis=0)/
-                np.average(adata.layers[counts_layer][adata.obs[obs_name] == adata.uns[key]['params']['reference']].toarray(), axis=0)
-            )
+    for group in groups:
+        group_avg_count = np.average(adata.layers[counts_layer][adata.obs[obs_name] == group].toarray(), axis=0)
+        if adata.uns[key]['params']['reference'] == 'rest':
+            ref_avg_count = np.average(adata.layers[counts_layer][adata.obs[obs_name] != group].toarray(), axis=0)
+        else:
+            ref_avg_count = np.average(adata.layers[counts_layer][adata.obs[obs_name] == adata.uns[key]['params']['reference']].toarray(), axis=0)
+        
+        # LFC would be NaN or inf if any values are less than or equal to 0
+        nan_mask = np.where(np.logical_or(group_avg_count <= 0, ref_avg_count <= 0))
+        group_avg_count[nan_mask] = 1
+        ref_avg_count[nan_mask] = 1
+
+        lfcs[group] = np.log2(group_avg_count/ref_avg_count)
 
     # change the logfoldchange values in the uns
     for i in range(adata.uns[key][uns_key_added].shape[0]):
@@ -173,7 +174,7 @@ def rgg_logfoldchange(adata:'anndata.AnnData', *, counts_layer='counts', uns_key
         
 def volcano_plot(df:'pandas.DataFrame', *, 
                  lfc_key='logfoldchanges', p_key='pvals_adj', genes_key='names', lfc_cutoff=0.5, p_cutoff=0.05, cutoff_style='and', 
-                 title=None, dot_size=1, upreg_color='#aa0000', downreg_color='#0000aa', grid=False, 
+                 title=None, dot_size=1, upreg_color='#aa0000', downreg_color='#0000aa', grid=False, vline=None,
                  annotate_genes=False, gene_annotation_lfc_cutoff=1.0, gene_annotation_p_cutoff=0.001, gene_annotation_cutoff_style='and', annotate_fontsize='small', annotation_adjust_text=False, bold_genes=[],
                  plot=True, return_genes=False
                  ):
@@ -223,6 +224,9 @@ def volcano_plot(df:'pandas.DataFrame', *,
     grid
         default value `False`
         Draws a grid on the axis when `True`.
+    vline
+        default value `None`
+        Draws one or more vertical lines at the x positions passed. Can be numerical or a list.
     annotate_genes
         default value `False`
         When `True`, uses the `gene_annotation_cutoff_style` to annotate gene names that meet the cutoff.
@@ -315,10 +319,21 @@ def volcano_plot(df:'pandas.DataFrame', *,
     if grid:
         ax.grid()
 
+    # rank_genes_groups annoyingly makes p-values 0 if they are too low
+    # we will re-calcualte the p values here
+    # adjusted p values is only really important for high p-values so we won't have to adjust these
+
     ax.scatter(df[lfc_key][neither], (-1*np.log10(df[p_key]))[neither], s=dot_size, c='gray')
     ax.scatter(df[lfc_key][upregulated], (-1*np.log10(df[p_key]))[upregulated], s=dot_size, c=upreg_color)
     ax.scatter(df[lfc_key][downregulated], (-1*np.log10(df[p_key]))[downregulated], s=dot_size, c=downreg_color)
-    
+
+    if vline is not None and vline is not False:
+        if type(vline) is list or type(vline) is np.ndarray: # list of line locs
+            for x in vline:
+                ax.axvline(x)
+        else:
+            ax.axvline(vline)
+
     # annotation
     anns = []
 
